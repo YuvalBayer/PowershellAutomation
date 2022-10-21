@@ -1,0 +1,4 @@
+#Unrestrickting policy for running powershell scripts for only one session
+Set-ExecutionPolicy -ExecutionPolicy Unrestricted -Scope Process
+
+Get-ExecutionPolicy -List
