@@ -73,57 +73,6 @@ function Get-FilesByLength {
     Write-Output "Total files: $total_files"
 }
 
-function Push-Dir {
-    [CmdletBinding()]
-    param (
-        # Parameter help description
-        [Parameter(Position = 0, Mandatory=$true)]
-        [string]
-        $source_dir,
-
-        [Parameter(Position = 1, Mandatory=$true)]
-        [string]
-        $dest_dir
-    )
-
-    $made_changes = $false
-
-    # get all items except those who belong to .git folder
-    $items = Get-ChildItem $source_dir -Recurse | Where-Object{$_.FullName -notlike '*.git*'}
-    foreach ($source_item in $items) {
-        # create full path destination
-        $full_path_source = $source_item.FullName.ToString()
-        $rel_path_source = $full_path_source.Substring($source_dir.Length + 1)
-        $full_path_dest = $dest_dir + '\' + $rel_path_source
-
-        # create if does not exist in destination
-        if (-not (Test-Path $full_path_dest)) {
-            $made_changes = $true
-
-            Write-Host "---------------------------------------------------------"
-            Write-Host "Creating"
-            Write-Host $full_path_dest
-            Write-Host "---------------------------------------------------------"
-            Copy-Item -Path $full_path_source -Destination $full_path_dest
-        }
-
-        # update if exist in destination
-        elseif ((Get-FileHash $full_path_source).hash -ne (Get-FileHash $full_path_dest).hash) {       
-            $made_changes = $true
-            
-            # overide destination if source and destination files are not identical
-            Copy-Item -Path $full_path_source -Destination $full_path_dest -Force
-            Write-Host "---------------------------------------------------------"
-            Write-Host "Pushing"
-            Write-Host $full_path_source
-            Write-Host "into"
-            Write-Host $full_path_dest
-            Write-Host "---------------------------------------------------------"
-        }
-    }
-    return $made_changes
-}
-
 function Start-DriveSession {
     [string]$WD = Get-Location # get working directory path as string
 
@@ -145,44 +94,32 @@ function Start-DriveSession {
 
     # create new directory in drive if does not exist
     if (-not (Test-Path $Destination)) {
-        Write-Output 'Creating new drive directory...'
-        Copy-Item -Path '.' -Destination 'G:\My Drive\' -Recurse
+        mkdir $Destination
     }
 
-    # update existing directory in drive
-    else {
-        $made_changes = Push-Dir -source_dir $WD -dest_dir $Destination
-    }
+    # update existing directory in drive using Windows Robust Copy
+    # /e = all files (including empty subdirectories)
+    # /mt = multithreading (8)
+    # /eta = present progress as ETA
+    robocopy $WD $Destination /e /mt /eta
 
     Write-Output 'Drive session is ready'
     Start https://drive.google.com/drive/u/1/my-drive
 
-    $confirm = ''
-    while (($confirm -ne 'CONFIRM') -and ($confirm -ne 'NO CHANGES')) {
-        $confirm = Read-Host "Confirm end of session by: `nChanges are expected [CONFIRM]`nNothing has changed [NO CHANGES]`n:"
+    Write-Output 'Confirm end of session by:'
+    $open = Read-Host "(1) Open drive directory [OPEN]"
+    while ($open -ne 'OPEN') {
+        $open = Read-Host "(1) Open drive directory [OPEN]"
+    }
+    start $Destination
+
+    $confirm = Read-Host "(2) Confirm changes [CONFIRM]"
+    while ($confirm -ne 'CONFIRM') {
+        $confirm = Read-Host "(2) Confirm changes [CONFIRM]"
     }
 
-    if ($confirm -eq 'NO CHANGES') {
-        Write-Output 'Session ended successfully'
-    }
-
-    else {
-        Write-Output 'Pulling changes into local machine'
-        $made_changes = $false
-        $c = 0
-        while (($made_changes -eq $false) -and ($c -lt 30)) {
-            Start-Sleep -Seconds 3
-            $c += 3
-            $made_changes = Push-Dir -source_dir $Destination -dest_dir $WD
-        }
-        
-        if ($made_changes -eq $false) {
-            Write-Output 'No changes were pulled to local machine - check internet connection'
-        }
-        else {
-            Write-Output 'Session ended successfully'
-        }
-    }
+    robocopy $Destination $WD /e /mt /eta
+    Write-Output 'Session ended successfully'
 }
 
 
