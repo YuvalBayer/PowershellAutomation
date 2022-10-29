@@ -1,0 +1,16 @@
+name: tf2
+channels:
+    - defaults
+    - conda-forge
+dependencies:
+    - pip
+    - jupyter
+    - scikit-learn
+    - scikit-optimize
+    - scipy
+    - pandas
+    - matplotlib
+    - pip:
+        - tensorflow==2.10.0
+        - tensorflow-addons==0.18.0
+        - kaggle            
