@@ -101,7 +101,11 @@ function Start-DriveSession {
     # /e = all files (including empty subdirectories)
     # /mt = multithreading (8)
     # /eta = present progress as ETA
-    robocopy $WD $Destination /e /mt /eta
+    # /xf excluding files starting with .
+    # /xd excluding directories starting with .
+
+    $excludeDot = ".*"
+    robocopy $WD $Destination /e /mt /eta /xf $excludeDot /xd $excludeDot
 
     Write-Output 'Drive session is ready'
     Start https://drive.google.com/drive/u/1/my-drive
